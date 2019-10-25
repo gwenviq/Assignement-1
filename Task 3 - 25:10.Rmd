@@ -1,0 +1,116 @@
+---
+title: "Task 3 - 25/10"
+author: "Gwendoline Viquesnel"
+date: "10/23/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+#Loading package
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r, include=FALSE}
+#Opening and reading the files 2017 and 2018 in R with only value needed for the exercise
+databirths2017 <- read_fwf("Nat2017",
+           fwf_positions(start = c(475, 504, 9, 13),
+                         end = c(475, 507, 12, 14),
+                         col_names = c("sex","birthweight", "birthyear", "birthmonth")))
+
+head(databirths2017)
+           
+databirths2018 <- read_fwf("Nat2018",
+              fwf_positions(start = c(475, 504, 9, 13),
+                         end = c(475, 507, 12, 14),
+                         col_names = c("sex","birthweight", "birthyear", "birthmonth")))
+      
+
+head(databirths2018)
+```
+
+## The proportion of boys and girls in 2017 and 2018
+
+```{r, include=FALSE}
+# What is the average birth weight in grams?
+
+Boys2017 <- databirths2017 %>% filter(sex == "M") %>% count()
+Girls2017 <- databirths2017 %>% filter(sex == "F") %>% count()
+
+proportionBoys2017 <- (Boys2017 / (Boys2017+Girls2017)) 
+proportionGirls2017 <- (1 - proportionBoys2017) 
+
+proportionBoys2017_2 <- round((proportionBoys2017 * 100), 2)
+proportionGirls2017_2 <- round((proportionGirls2017 * 100), 2)
+
+Boys2018 <- databirths2018 %>% filter(sex == "M") %>% count()
+Girls2018 <- databirths2018 %>% filter(sex == "F") %>% count()
+
+proportionBoys2018 <- (Boys2018 / (Boys2018+Girls2018))
+proportionGirls2018 <- (1 - proportionBoys2018) 
+
+proportionBoys2018_2 <- round((proportionBoys2018 * 100), 2)
+proportionGirls2018_2 <- round((proportionGirls2018 * 100), 2)
+
+```
+
+*The proportion of girls in 2017 was `r proportionGirls2017_2`% (and boys was `r proportionBoys2017_2`%) whereas the proportion of girls in 2018 was `r proportionGirls2018_2`% (and boys was `r proportionBoys2018_2`%).*
+
+## Average birth weight in grams of babies born in 2017 and 2018
+
+```{r, include=FALSE}
+# What is the average birth weight in grams?
+
+databirths2017$birthweight <- as.numeric(databirths2017$birthweight)
+databirths2018$birthweight <- as.numeric(databirths2018$birthweight)
+
+averagebirthweight2017 <- mean(databirths2017$birthweight)
+averagebirthweight2018 <- mean(databirths2018$birthweight)
+
+```
+
+
+*In 2017, the average birth weight was `r averagebirthweight2017` while in 2018 the average birth weight was `r averagebirthweight2018`*
+
+## Density plot of the birth weight of both boys and girls born in 2018
+
+```{r, echo=FALSE}
+#Make a density plot on the birth weight between boys and girls in 2018. Is it different?
+
+ggplot(databirths2018, aes(x=birthweight, fill=sex)) + geom_density() +  ggtitle("Birth weight comparison between boys and girls in 2018")
+
+```
+
+
+*We can notice that girls birth weight curve tends to be a bit higher than boys birth weight curve, meaning that girls birth weight tends to be lower than boys birth weight.*
+
+# Average birth weight by month and year
+
+```{r, echo=FALSE}
+#Does the average birth weight vary by month and year?
+
+# Group the two dataframe and the columns birthyear and birthmonth
+databirths20172018 <- rbind(databirths2017, databirths2018) %>%
+  unite("birthdate", birthyear, birthmonth, sep="/")
+
+# Calculate the monthly mean weight 
+averageweightmonthly <- databirths20172018 %>% group_by(birthdate) %>% summarize(averageweight = mean(birthweight))
+
+averageweightmonthly$birthdate <- parse_date_time(averageweightmonthly$birthdate, "ym")
+
+ggplot(averageweightmonthly) + geom_line(mapping = aes(x=birthdate, y=averageweight), stat="identity") +
+  ggtitle("Average birth weight calculated monthly for the years 2017 and 2018") 
+```
+
+
+*We can notice that the average weight tends to be low for babies born in winter while it tend to be higher when babies are born in summer*
+
+
