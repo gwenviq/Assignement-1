@@ -1,0 +1,179 @@
+---
+title: "exn Task 4"
+author: "moi"
+date: "10/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(rvest)
+```
+
+```{r}
+# Question 1 : For the last 3 months of 2017, calculate the total Sales by month, for Region 1 and Region 9 in the Customer_Segment, Corporate and Consumer. This output is Table 1.
+
+DataQ1 <- storedata %>% 
+  filter(Order_Date >= "2017-10-01") %>% 
+  filter(Region == "Region 1" | Region == "Region 9") %>% 
+  filter(Customer_Segment == "Corporate" | Customer_Segment == "Consumer") 
+
+Order_Year <- format(DataQ1$Order_Date, format = "%Y")
+Order_Month <- format(DataQ1$Order_Date, format = "%m")
+Order_Day <- format(DataQ1$Order_Date, format = "%d")
+
+DataQ1 <- cbind(DataQ1,Order_Year,Order_Month,Order_Day)
+
+as.numeric(Order_Month)
+
+Table_Part1 <- DataQ1 %>%
+  filter(Region == "Region 1") %>%
+  group_by(Order_Month) %>% 
+  summarise_if(is.numeric,sum) %>% 
+  select(Order_Month,Sales)  %>% 
+  rename(Sales_Region_1=Sales)
+
+Table_Part2 <- DataQ1 %>%
+  filter(Region == "Region 9") %>%
+  group_by(Order_Month) %>% 
+  summarise_if(is.numeric,sum) %>% 
+  select(Order_Month,Sales) %>% 
+  rename(Sales_Region_9=Sales)
+  
+Table1 <- merge(Table_Part1, Table_Part2, by = "Order_Month")
+
+Table1 
+```
+
+```{r}
+# Question 2 : Make a plot of the monthly total Sales in Region 1 and Region 13 in 2015, 2016 and 2017. This output is Figure 1.
+
+DataQ2 <- storedata %>% 
+  filter(Order_Date >= "2015-01-01") %>% 
+  filter(Region == "Region 1" | Region == "Region 13") 
+
+Order_Month_Year <- format(DataQ2$Order_Date, format = "%m-%Y")
+
+DataQ2 <- cbind(DataQ2,Order_Month_Year)
+
+TableQ2 <- DataQ2 %>%
+  group_by(Region, Order_Month_Year) %>% 
+  summarise_if(is.numeric,sum) %>% 
+  select(Order_Month_Year, Sales, Region) 
+
+Figure1 <- ggplot(data=TableQ2, aes(x=Order_Month_Year, y=Sales, fill=Region)) +
+    geom_line(aes(colour = Region, group = Region)) +
+    labs(title = "Monthly total sales for Region 1 and Region 13 between 2015 and 2017", x="Date", y="Total Sales")
+
+Figure1
+```
+
+```{r}
+# Question 3 : In Figure 1, identify the months where the total Sales in Region 13 is greater than the total Sales in Region 1. This output is Table 2.
+
+Table2_Region1 <- TableQ2 %>%
+  filter(Region == "Region 1")
+
+Table2_Region13 <- TableQ2 %>%
+  filter(Region == "Region 13")
+
+Table_2 <- merge(Table2_Region1, Table2_Region13, by="Order_Month_Year")
+
+Table_2$Diff <- Table_2$Sales.y - Table_2$Sales.x 
+
+Table2 <- Table_2 %>% filter(Diff > 0) %>% select(Order_Month_Year, Diff)
+
+Table2
+```
+
+```{r}
+# Question 4 : Find average Profit per Customer_Segment and Product_Category in 2017, for all regions except Region 3, 5 and 8. What segment produced the highest average profit? This output is Table 3.
+
+Order_Year <- format(storedata$Order_Date, format = "%Y")
+
+DataQ4 <- cbind(storedata,Order_Year)
+
+Table3 <- DataQ4 %>% 
+  filter(Order_Year == "2017") %>% 
+  filter(Region != "Region 3" & Region != "Region 5" & Region != "Region 8") %>% 
+  select(Profit, Customer_Segment, Product_Category, Region) %>% 
+  group_by(Region, Customer_Segment, Product_Category) %>% 
+  summarise(Avg_profit = mean(Profit))
+
+Segment <- Table3[Table3$Avg_profit == max(Table3$Avg_profit),2]
+Product_category <- Table3[Table3$Avg_profit == max(Table3$Avg_profit),3]
+Max_profit <- Table3[Table3$Avg_profit == max(Table3$Avg_profit),4]
+```
+
+**The segment which produced the highest average profit is segment `r Segment` for the product category `r Product_category` and for which the average profit was `r Max_profit`.**
+
+```{r}
+# Question 5 : ou are asked to estimate a SARIMA model on the aggregated monthly Order_Quantity in the Customer_Segment; Small Business and Product_Category; Office Supplies. The SARIMA model contains the following parameters:
+
+```
+
+```{r}
+rm(list=ls())
+
+# The URL's
+
+# static course
+browseURL("http://timeplan.uit.no/emne_timeplan.php?sem=19h&module%5B%5D=SOK-3020-1&View=list")
+
+course <- list("SOK-3008-1","SOK-3020-1","BED-2056-1")
+
+semester <- 
+  list(y = c(18, 19),
+       s = c("v","h"),
+       sep = c("")) %>% 
+  cross() %>% map(lift(paste)) 
+
+semester
+
+df <- expand.grid(semester,course)
+df
+
+# empty list
+url <- list()
+
+for (i in 1:length(df$Var1)) {
+  url[i] <- paste("http://timeplan.uit.no/emne_timeplan.php?sem=",df[i,1],"&module%5B%5D=",df[i,2],"&View=list", sep="")
+}
+
+url
+
+# use function
+scrape <- function(url) {
+  return(read_html(unlist(url)) %>% 
+           html_nodes(., 'table') %>% 
+           html_table(., header=FALSE, fill=TRUE, trim=TRUE)) }
+
+# map the function on the list of url's
+dlist <- map(url, safely(scrape))
+
+dlist[[3]]
+
+dlist[[3]][[1]]
+
+dframe <- dlist %>% map('result') %>% map_df(., bind_rows)
+
+# use function
+scrape2 <- function(url) {
+  return(read_html(unlist(url)) %>% 
+           html_nodes(., 'table') %>% 
+           html_table(., header=FALSE, fill=TRUE, trim=TRUE) %>% 
+           list.stack(.)) }
+
+# map the function on the list of url's
+dlist2 <- map(url, safely(scrape2))
+
+dframe2 <- dlist2 %>% map('result') %>% map_df(., bind_rows)
+```
